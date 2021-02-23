@@ -1,5 +1,7 @@
 import numpy as np
 from sklearn.cluster import KMeans
+import argparse
+
 import json
 
 
@@ -25,7 +27,6 @@ def get_numeric_keys(player_data, unwanted_columns):
             if not key in unwanted_columns:
                 numeric_keys.append(key)
     numeric_keys.sort()
-    #print(numeric_keys)
     return numeric_keys
 
 
@@ -106,7 +107,8 @@ def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, pe
     kmeans.fit(numeric_vectors)
     labels = kmeans.labels_
 
-    # create list of groups from annotated players list
+    # labels is a list of group labels that correspond to the players list by index
+    # create list of clustered groups of players using these labels.
     groups = []
     for i in range(k):
         current_group = []
@@ -143,34 +145,43 @@ def filter_by_position(player_list, position):
     filtered = [ player for player in player_list if player['fantasy_pos'] == position.upper() ]
     return filtered
 
-if __name__ == "__main__":
-    # command line args for position and num_clusters
-    import argparse
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p')
     parser.add_argument('-n')
     parser.add_argument('-i',nargs="+")
-
     args = parser.parse_args()
+    return args
+
+def option_dict_from_args(args):
     num_clusters = 40
     position = ""
     custom_columns = False
+    unwanted_columns = default_unwanted_columns
     if args.p:
         position = args.p.upper()
     if args.n:
         num_clusters = int(args.n)
     if args.i:
-        new_unwanted_columns = [ col for col in default_unwanted_columns if col not in args.i ]
+        unwanted_columns = [ col for col in default_unwanted_columns if col not in args.i ]
         custom_columns = True
+    return {
+        'num_clusters': num_clusters,
+        'position': position,
+        'custom_columns': custom_columns,
+        'unwanted_columns': unwanted_columns,
+    }
 
+if __name__ == "__main__":
+    args = parse_args()
+    options = option_dict_from_args(args)
     # read player data that will be clustered
     data = load_data()
-
-    if position:
-        data = filter_by_position(data, position)
-    if custom_columns:
-        groups = cluster_players(data, k=num_clusters, unwanted_columns=new_unwanted_columns)
+    if options['position']:
+        data = filter_by_position(data, options['position'])
+    if options['custom_columns']:
+        groups = cluster_players(data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
     else:
-        groups = cluster_players(data, k=num_clusters)
+        groups = cluster_players(data, k=options['num_clusters'])
 
     print_cluster_groups(groups)
