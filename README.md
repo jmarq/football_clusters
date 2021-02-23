@@ -1,6 +1,6 @@
 # K-Means clustering of NFL player stats
 
-A few years ago I wrote some code to download player stats from pro-football-reference.com, and run the data through a basic un-supervised clustering algorithm, to see which player rows were deemed "similar".
+A few years ago I wrote some code to download player stats from the wonderful pro-football-reference.com, and run the data through a basic un-supervised clustering algorithm, to see which player rows were deemed "similar".
 
 Here is that code in all its unpolished glory.
 
@@ -12,6 +12,7 @@ once dependencies are installed (perhaps use a virtualenv and pip install from r
 
 ## Downloading stats
 - `python football_reference.py` to download/parse stats from 2020 season (given that PFR hasn't changed their html formatting), resulting in a json file.
+- Be respectful with your automated downloads. Don't hammer the site! Give credit if using their data.
 
 ## Using the clustering script
 - `python cluster_players.py` to print out the resulting cluster information.
