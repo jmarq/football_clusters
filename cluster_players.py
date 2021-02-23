@@ -147,8 +147,13 @@ def filter_by_position(player_list, position):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    # position filter
     parser.add_argument('-p')
+    # number of clusters
     parser.add_argument('-n')
+    # file for json data source
+    parser.add_argument('-f')
+    # include would-be-excluded data dimensions
     parser.add_argument('-i',nargs="+")
     args = parser.parse_args()
     return args
@@ -157,17 +162,21 @@ def option_dict_from_args(args):
     num_clusters = 40
     position = ""
     custom_columns = False
+    data_filename = None
     unwanted_columns = default_unwanted_columns
     if args.p:
         position = args.p.upper()
     if args.n:
         num_clusters = int(args.n)
+    if args.f:
+        data_filename = args.f
     if args.i:
         unwanted_columns = [ col for col in default_unwanted_columns if col not in args.i ]
         custom_columns = True
     return {
         'num_clusters': num_clusters,
         'position': position,
+        'data_filename': data_filename,
         'custom_columns': custom_columns,
         'unwanted_columns': unwanted_columns,
     }
@@ -176,7 +185,10 @@ if __name__ == "__main__":
     args = parse_args()
     options = option_dict_from_args(args)
     # read player data that will be clustered
-    data = load_data()
+    if options['data_filename']:
+        data = load_data(filename=options['data_filename'])
+    else:
+        data = load_data()
     if options['position']:
         data = filter_by_position(data, options['position'])
     if options['custom_columns']:
