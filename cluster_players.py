@@ -102,6 +102,7 @@ default_per_game_columns = [
     'targets'
 ]
 
+
 def prepare_vectors(player_data, unwanted_columns, per_game_columns):
     players = convert_to_per_game(player_data, per_game_columns)
     numeric_keys = get_numeric_keys(players, unwanted_columns)
@@ -110,6 +111,7 @@ def prepare_vectors(player_data, unwanted_columns, per_game_columns):
     numeric_vectors = np.array(numeric_players)
     numeric_vectors = normalize_vectors(numeric_vectors)
     return numeric_vectors
+
 
 def group_by_label(players, labels, num_clusters):
     groups = []
@@ -121,9 +123,11 @@ def group_by_label(players, labels, num_clusters):
         groups.append(current_group)
     return groups
 
+
 def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
     # setup data for kmeans
-    numeric_vectors = prepare_vectors(players, unwanted_columns, per_game_columns)
+    numeric_vectors = prepare_vectors(
+        players, unwanted_columns, per_game_columns)
 
     # setup and run sklearn kmeans algorithm
     kmeans = KMeans(n_clusters=k)
@@ -194,12 +198,12 @@ def option_dict_from_args(args):
     if args.i:
         unwanted_columns = [
             col for col in default_unwanted_columns if col not in args.i]
-        custom_columns = True
+    else:
+        unwanted_columns = default_unwanted_columns
     return {
         'num_clusters': num_clusters,
         'position': position,
         'data_filename': data_filename,
-        'custom_columns': custom_columns,
         'unwanted_columns': unwanted_columns,
     }
 
@@ -214,10 +218,6 @@ if __name__ == "__main__":
         data = load_data()
     if options['position']:
         data = filter_by_position(data, options['position'])
-    if options['custom_columns']:
-        groups = cluster_players(
-            data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
-    else:
-        groups = cluster_players(data, k=options['num_clusters'])
-
+    groups = cluster_players(
+        data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
     print_cluster_groups(groups)
