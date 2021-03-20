@@ -1,22 +1,30 @@
 import numpy as np
 from sklearn.cluster import KMeans
 import argparse
-
 import json
+from copy import deepcopy
 
 
 def fix_ages(player_data, default_age):
-    for player in player_data:
+    results = []
+    for old_player in player_data:
+        player = deepcopy(old_player)
         if player['age'] == 0:
             player['age'] = default_age*1.0
+        results.append(player)
+    return results
 
 
 def convert_to_per_game(player_data, per_game_columns):
-    for player in player_data:
+    results = []
+    for old_player in player_data:
+        player = deepcopy(old_player)
         games = player['g']
         for col in per_game_columns:
             if games != 0:
                 player[col] = player[col]/(games*1.0)
+        results.append(player)
+    return results
 
 
 def get_numeric_keys(player_data, unwanted_columns):
@@ -38,15 +46,15 @@ def only_numeric(row, numeric_keys):
 
 
 def map_to_only_numeric(player_data, numeric_keys):
-    return [ only_numeric(row, numeric_keys) for row in player_data ]
+    return [only_numeric(row, numeric_keys) for row in player_data]
 
 
 def map_to_names_and_positions(player_data):
-    return [ (row['player'], row['fantasy_pos']) for row in player_data ]
+    return [(row['player'], row['fantasy_pos']) for row in player_data]
 
 
 def normalize_column(vectors, index):
-    values = vectors[:,index]
+    values = vectors[:, index]
     minimum = np.min(values)
     maximum = np.max(values)
     span = maximum - minimum
@@ -58,8 +66,10 @@ def normalize_column(vectors, index):
 
 
 def normalize_vectors(vectors):
-    for i in range(0, len(vectors[0])):
-        vectors[:,i] = normalize_column(vectors, i)
+    results = deepcopy(vectors)
+    for i in range(0, len(results[0])):
+        results[:, i] = normalize_column(results, i)
+    return results
 
 
 default_unwanted_columns = [
@@ -93,14 +103,14 @@ default_per_game_columns = [
 ]
 
 
-def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
+def cluster_players(data, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
     # setup data for kmeans
-    convert_to_per_game(players, per_game_columns)
+    players = convert_to_per_game(data, per_game_columns)
     numeric_keys = get_numeric_keys(players, unwanted_columns)
     numeric_players = map_to_only_numeric(players, numeric_keys)
     player_names_and_positions = map_to_names_and_positions(players)
     numeric_vectors = np.array(numeric_players)
-    normalize_vectors(numeric_vectors)
+    numeric_vectors = normalize_vectors(numeric_vectors)
 
     # setup and run sklearn kmeans algorithm
     kmeans = KMeans(n_clusters=k)
@@ -115,7 +125,7 @@ def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, pe
         for j in range(len(players)):
             if labels[j] == i:
                 current_group.append(players[j])
-                #print(player_names_and_positions[j])
+                # print(player_names_and_positions[j])
         groups.append(current_group)
     return groups
 
@@ -133,17 +143,21 @@ def print_cluster_groups(groups, verbose=False):
                 print(player['player']+", "+player['fantasy_pos'])
         index += 1
 
+
 def load_data(filename="football_reference_2020.json", default_age=20):
     fi = open(filename, "r")
     contents = fi.read()
     fi.close()
     data = json.loads(contents)["players"]
-    fix_ages(data, default_age)
+    data = fix_ages(data, default_age)
     return data
 
+
 def filter_by_position(player_list, position):
-    filtered = [ player for player in player_list if player['fantasy_pos'] == position.upper() ]
+    filtered = [
+        player for player in player_list if player['fantasy_pos'] == position.upper()]
     return filtered
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -154,9 +168,10 @@ def parse_args():
     # file for json data source
     parser.add_argument('-f')
     # include would-be-excluded data dimensions
-    parser.add_argument('-i',nargs="+")
+    parser.add_argument('-i', nargs="+")
     args = parser.parse_args()
     return args
+
 
 def option_dict_from_args(args):
     num_clusters = 40
@@ -171,7 +186,8 @@ def option_dict_from_args(args):
     if args.f:
         data_filename = args.f
     if args.i:
-        unwanted_columns = [ col for col in default_unwanted_columns if col not in args.i ]
+        unwanted_columns = [
+            col for col in default_unwanted_columns if col not in args.i]
         custom_columns = True
     return {
         'num_clusters': num_clusters,
@@ -180,6 +196,7 @@ def option_dict_from_args(args):
         'custom_columns': custom_columns,
         'unwanted_columns': unwanted_columns,
     }
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -192,7 +209,8 @@ if __name__ == "__main__":
     if options['position']:
         data = filter_by_position(data, options['position'])
     if options['custom_columns']:
-        groups = cluster_players(data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
+        groups = cluster_players(
+            data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
     else:
         groups = cluster_players(data, k=options['num_clusters'])
 
