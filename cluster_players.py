@@ -102,15 +102,28 @@ default_per_game_columns = [
     'targets'
 ]
 
-
-def cluster_players(data, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
-    # setup data for kmeans
-    players = convert_to_per_game(data, per_game_columns)
+def prepare_vectors(player_data, unwanted_columns, per_game_columns):
+    players = convert_to_per_game(player_data, per_game_columns)
     numeric_keys = get_numeric_keys(players, unwanted_columns)
     numeric_players = map_to_only_numeric(players, numeric_keys)
     player_names_and_positions = map_to_names_and_positions(players)
     numeric_vectors = np.array(numeric_players)
     numeric_vectors = normalize_vectors(numeric_vectors)
+    return numeric_vectors
+
+def group_by_label(players, labels, num_clusters):
+    groups = []
+    for i in range(0, num_clusters):
+        current_group = []
+        for j in range(len(players)):
+            if labels[j] == i:
+                current_group.append(players[j])
+        groups.append(current_group)
+    return groups
+
+def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
+    # setup data for kmeans
+    numeric_vectors = prepare_vectors(players, unwanted_columns, per_game_columns)
 
     # setup and run sklearn kmeans algorithm
     kmeans = KMeans(n_clusters=k)
@@ -119,14 +132,7 @@ def cluster_players(data, k=30, unwanted_columns=default_unwanted_columns, per_g
 
     # labels is a list of group labels that correspond to the players list by index
     # create list of clustered groups of players using these labels.
-    groups = []
-    for i in range(k):
-        current_group = []
-        for j in range(len(players)):
-            if labels[j] == i:
-                current_group.append(players[j])
-                # print(player_names_and_positions[j])
-        groups.append(current_group)
+    groups = group_by_label(players, labels, k)
     return groups
 
 
