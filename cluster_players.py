@@ -207,10 +207,7 @@ def option_dict_from_args(args):
         'unwanted_columns': unwanted_columns,
     }
 
-
-if __name__ == "__main__":
-    args = parse_args()
-    options = option_dict_from_args(args)
+def run_clusters(options):
     # read player data that will be clustered
     if options['data_filename']:
         data = load_data(filename=options['data_filename'])
@@ -220,4 +217,10 @@ if __name__ == "__main__":
         data = filter_by_position(data, options['position'])
     groups = cluster_players(
         data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
+    return groups
+
+if __name__ == "__main__":
+    args = parse_args()
+    options = option_dict_from_args(args)
+    groups = run_clusters(options)
     print_cluster_groups(groups)
