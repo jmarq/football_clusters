@@ -3,6 +3,7 @@ from sklearn.cluster import KMeans
 import argparse
 import json
 from copy import deepcopy
+from collections import defaultdict
 
 
 default_unwanted_columns = [
@@ -131,18 +132,27 @@ def group_by_label(players, labels, num_clusters):
     return groups
 
 
-def print_cluster_groups(groups, verbose=False):
-    index = 0
-    for group in groups:
-        if verbose:
-            print("\n\n"+"#"*20)
-        print("\ngroup %d:" % index)
-        for player in group:
-            if verbose:
-                print(player)
-            else:
-                print(player['player']+", "+player['fantasy_pos'])
-        index += 1
+def annotate_players_with_labels(players, labels):
+    results = deepcopy(players)
+    for index, player in enumerate(results):
+        label = labels[index]
+        player['label'] = str(label)
+    return results
+
+
+def group_annotated_list_by_labels(annotated_players):
+    result_dict = defaultdict(list)
+    for player in annotated_players:
+        result_dict[player['label']].append(player)
+    return result_dict
+
+
+def print_grouped_list(group_dict):
+    for label, players in group_dict.items():
+        print("#"*20)
+        print("group "+str(label)+":")
+        for player in players:
+            print(player['player']+", "+player['fantasy_pos'])
 
 
 def load_data(filename=None):
@@ -155,27 +165,24 @@ def load_data(filename=None):
 
 
 def filter_by_position(player_list, position):
-    filtered = [
-        player for player in player_list if player['fantasy_pos'] == position.upper()]
-    return filtered
-
-
-def prepare_data(data, options):
-    results = data
-    if options['position']:
-        results = filter_by_position(data, options['position'])
-    results = fix_ages(results, 20)
+    results = player_list
+    if position:
+        results = [
+            player for player in results if player['fantasy_pos'] == position.upper()
+        ]
     return results
 
 
 def run_clusters(options):
     # read player data that will be clustered
     data = load_data(filename=options['data_filename'])
-    data = prepare_data(data, options)
+    # prepare for clustering
+    filtered = filter_by_position(data, options['position'])
+    filtered_and_fixed = fix_ages(filtered, 20)
     labels = get_cluster_labels(
-        data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
-    groups = group_by_label(data, labels, options['num_clusters'])
-    return groups
+        filtered_and_fixed, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
+    annotated = annotate_players_with_labels(filtered, labels)
+    return annotated
 
 
 def parse_args():
@@ -186,6 +193,8 @@ def parse_args():
     parser.add_argument('-n')
     # file for json data source
     parser.add_argument('-f')
+    # flag for outputting json instead of printing formatted list
+    parser.add_argument('-j', action="store_const", const=True)
     # include would-be-excluded data dimensions
     parser.add_argument('-i', nargs="+")
     args = parser.parse_args()
@@ -198,12 +207,15 @@ def option_dict_from_args(args):
     custom_columns = False
     data_filename = None
     unwanted_columns = default_unwanted_columns
+    output_json = False
     if args.p:
         position = args.p.upper()
     if args.n:
         num_clusters = int(args.n)
     if args.f:
         data_filename = args.f
+    if args.j:
+        output_json = True
     if args.i:
         unwanted_columns = [
             col for col in default_unwanted_columns if col not in args.i]
@@ -214,11 +226,16 @@ def option_dict_from_args(args):
         'position': position,
         'data_filename': data_filename,
         'unwanted_columns': unwanted_columns,
+        'output_json': output_json
     }
 
 
 if __name__ == "__main__":
     args = parse_args()
     options = option_dict_from_args(args)
-    groups = run_clusters(options)
-    print_cluster_groups(groups)
+    annotated_players = run_clusters(options)
+    if options['output_json']:
+        print(json.dumps(annotated_players))
+    else:
+        grouped = group_annotated_list_by_labels(annotated_players)
+        print_grouped_list(grouped)
