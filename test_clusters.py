@@ -14,8 +14,6 @@ class ClusterTest(unittest.TestCase):
             'unwanted_columns': cluster_players.default_unwanted_columns,
             'output_json': False
         }
-        # num_clusters = 20
-        # clustered = cluster_players.cluster_players(self.data, k=num_clusters)
 
         results = cluster_players.run_clusters(options)
         grouped_results = cluster_players.group_annotated_list_by_labels(
