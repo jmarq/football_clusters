@@ -5,6 +5,37 @@ import json
 from copy import deepcopy
 
 
+default_unwanted_columns = [
+    'fantasy_points',
+    'fantasy_rank_overall',
+    'fantasy_rank_pos',
+    'draftkings_points',
+    'vbd',
+    'fantasy_points_ppr',
+    'fanduel_points',
+    'gs',
+    'g',
+    'age',
+    'rush_yds_per_att',
+    'rec_yds_per_rec',
+]
+
+default_per_game_columns = [
+    'pass_att',
+    'pass_cmp',
+    'pass_int',
+    'pass_td',
+    'pass_yds',
+    'rec',
+    'rec_td',
+    'rec_yds',
+    'rush_att',
+    'rush_td',
+    'rush_yds',
+    'targets'
+]
+
+
 def fix_ages(player_data, default_age):
     results = []
     for old_player in player_data:
@@ -49,10 +80,6 @@ def map_to_only_numeric(player_data, numeric_keys):
     return [only_numeric(row, numeric_keys) for row in player_data]
 
 
-def map_to_names_and_positions(player_data):
-    return [(row['player'], row['fantasy_pos']) for row in player_data]
-
-
 def normalize_column(vectors, index):
     values = vectors[:, index]
     minimum = np.min(values)
@@ -72,45 +99,25 @@ def normalize_vectors(vectors):
     return results
 
 
-default_unwanted_columns = [
-    'fantasy_points',
-    'fantasy_rank_overall',
-    'fantasy_rank_pos',
-    'draftkings_points',
-    'vbd',
-    'fantasy_points_ppr',
-    'fanduel_points',
-    'gs',
-    'g',
-    'age',
-    'rush_yds_per_att',
-    'rec_yds_per_rec',
-]
-
-default_per_game_columns = [
-    'pass_att',
-    'pass_cmp',
-    'pass_int',
-    'pass_td',
-    'pass_yds',
-    'rec',
-    'rec_td',
-    'rec_yds',
-    'rush_att',
-    'rush_td',
-    'rush_yds',
-    'targets'
-]
-
-
 def prepare_vectors(player_data, unwanted_columns, per_game_columns):
     players = convert_to_per_game(player_data, per_game_columns)
     numeric_keys = get_numeric_keys(players, unwanted_columns)
     numeric_players = map_to_only_numeric(players, numeric_keys)
-    player_names_and_positions = map_to_names_and_positions(players)
     numeric_vectors = np.array(numeric_players)
     numeric_vectors = normalize_vectors(numeric_vectors)
     return numeric_vectors
+
+
+def get_cluster_labels(players, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
+    # setup data for kmeans
+    numeric_vectors = prepare_vectors(
+        players, unwanted_columns, per_game_columns)
+
+    # setup and run sklearn kmeans algorithm
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(numeric_vectors)
+    labels = kmeans.labels_
+    return labels
 
 
 def group_by_label(players, labels, num_clusters):
@@ -121,22 +128,6 @@ def group_by_label(players, labels, num_clusters):
             if labels[j] == i:
                 current_group.append(players[j])
         groups.append(current_group)
-    return groups
-
-
-def cluster_players(players, k=30, unwanted_columns=default_unwanted_columns, per_game_columns=default_per_game_columns):
-    # setup data for kmeans
-    numeric_vectors = prepare_vectors(
-        players, unwanted_columns, per_game_columns)
-
-    # setup and run sklearn kmeans algorithm
-    kmeans = KMeans(n_clusters=k)
-    kmeans.fit(numeric_vectors)
-    labels = kmeans.labels_
-
-    # labels is a list of group labels that correspond to the players list by index
-    # create list of clustered groups of players using these labels.
-    groups = group_by_label(players, labels, k)
     return groups
 
 
@@ -168,6 +159,7 @@ def filter_by_position(player_list, position):
         player for player in player_list if player['fantasy_pos'] == position.upper()]
     return filtered
 
+
 def prepare_data(data, options):
     results = data
     if options['position']:
@@ -180,8 +172,9 @@ def run_clusters(options):
     # read player data that will be clustered
     data = load_data(filename=options['data_filename'])
     data = prepare_data(data, options)
-    groups = cluster_players(
+    labels = get_cluster_labels(
         data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
+    groups = group_by_label(data, labels, options['num_clusters'])
     return groups
 
 
@@ -200,7 +193,7 @@ def parse_args():
 
 
 def option_dict_from_args(args):
-    num_clusters = 40
+    num_clusters = 30
     position = ""
     custom_columns = False
     data_filename = None
@@ -222,6 +215,7 @@ def option_dict_from_args(args):
         'data_filename': data_filename,
         'unwanted_columns': unwanted_columns,
     }
+
 
 if __name__ == "__main__":
     args = parse_args()
