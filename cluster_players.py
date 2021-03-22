@@ -154,12 +154,12 @@ def print_cluster_groups(groups, verbose=False):
         index += 1
 
 
-def load_data(filename="football_reference_2020.json", default_age=20):
+def load_data(filename=None):
+    filename = filename or "football_reference_2020.json"
     fi = open(filename, "r")
     contents = fi.read()
     fi.close()
     data = json.loads(contents)["players"]
-    data = fix_ages(data, default_age)
     return data
 
 
@@ -167,6 +167,22 @@ def filter_by_position(player_list, position):
     filtered = [
         player for player in player_list if player['fantasy_pos'] == position.upper()]
     return filtered
+
+def prepare_data(data, options):
+    results = data
+    if options['position']:
+        results = filter_by_position(data, options['position'])
+    results = fix_ages(results, 20)
+    return results
+
+
+def run_clusters(options):
+    # read player data that will be clustered
+    data = load_data(filename=options['data_filename'])
+    data = prepare_data(data, options)
+    groups = cluster_players(
+        data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
+    return groups
 
 
 def parse_args():
@@ -206,18 +222,6 @@ def option_dict_from_args(args):
         'data_filename': data_filename,
         'unwanted_columns': unwanted_columns,
     }
-
-def run_clusters(options):
-    # read player data that will be clustered
-    if options['data_filename']:
-        data = load_data(filename=options['data_filename'])
-    else:
-        data = load_data()
-    if options['position']:
-        data = filter_by_position(data, options['position'])
-    groups = cluster_players(
-        data, k=options['num_clusters'], unwanted_columns=options['unwanted_columns'])
-    return groups
 
 if __name__ == "__main__":
     args = parse_args()
