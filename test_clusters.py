@@ -37,8 +37,18 @@ class ClusterTest(unittest.TestCase):
         }
 
         annotated_players = cluster_players.run_clusters(options)
-        player_positions = set(map(lambda p: p['fantasy_pos'], annotated_players))
+        player_positions = set(
+            map(lambda p: p['fantasy_pos'], annotated_players))
         assert(player_positions == set([options['position'].upper()]))
+
+    def testArgs(self):
+        test_args = ['-p', 'rb', '-j', '-n', '30']
+        parsed_args = cluster_players.parse_args(test_args)
+        options = cluster_players.option_dict_from_args(parsed_args)
+        assert(options['position'] == 'RB')
+        assert(options['num_clusters'] == 30)
+        assert(options['output_json'] == True)
+
 
 if __name__ == "__main__":
     unittest.main()

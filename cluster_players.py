@@ -4,6 +4,7 @@ import argparse
 import json
 from copy import deepcopy
 from collections import defaultdict
+import sys
 
 
 default_unwanted_columns = [
@@ -121,17 +122,6 @@ def get_cluster_labels(players, k=30, unwanted_columns=default_unwanted_columns,
     return labels
 
 
-def group_by_label(players, labels, num_clusters):
-    groups = []
-    for i in range(0, num_clusters):
-        current_group = []
-        for j in range(len(players)):
-            if labels[j] == i:
-                current_group.append(players[j])
-        groups.append(current_group)
-    return groups
-
-
 def annotate_players_with_labels(players, labels):
     results = deepcopy(players)
     for index, player in enumerate(results):
@@ -185,7 +175,7 @@ def run_clusters(options):
     return annotated
 
 
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser()
     # position filter
     parser.add_argument('-p')
@@ -197,8 +187,8 @@ def parse_args():
     parser.add_argument('-j', action="store_const", const=True)
     # include would-be-excluded data dimensions
     parser.add_argument('-i', nargs="+")
-    args = parser.parse_args()
-    return args
+    parsed = parser.parse_args(args)
+    return parsed
 
 
 def option_dict_from_args(args):
@@ -231,7 +221,7 @@ def option_dict_from_args(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = parse_args(sys.argv[1:])
     options = option_dict_from_args(args)
     annotated_players = run_clusters(options)
     if options['output_json']:
